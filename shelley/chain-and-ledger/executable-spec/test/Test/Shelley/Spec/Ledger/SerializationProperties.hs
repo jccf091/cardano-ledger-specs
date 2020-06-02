@@ -91,6 +91,7 @@ import Shelley.Spec.Ledger.LedgerState
     WitHashes (..),
     emptyRewardUpdate,
   )
+import Shelley.Spec.Ledger.Value (Quantity (..), valueToCompactValue)
 import Shelley.Spec.Ledger.MetaData (MetaDataHash (..))
 import Shelley.Spec.Ledger.OCert (KESPeriod (..))
 import Shelley.Spec.Ledger.PParams (PParams, ProtVer)
@@ -171,6 +172,7 @@ roundtrip' enc dec a = case deserialiseFromBytes dec bs of
 
 genHash :: forall a c. Crypto c => Proxy c -> Gen (Hash c a)
 genHash proxy = mkDummyHash proxy <$> arbitrary
+
 
 mkDummyHash :: forall c a. Crypto c => Proxy c -> Int -> Hash c a
 mkDummyHash _ = coerce . hash @(HASH c)
@@ -260,6 +262,23 @@ instance HashAlgorithm h => Arbitrary (Mock.BHeader h) where
 instance Crypto c => Arbitrary (HashHeader c) where
   arbitrary = HashHeader <$> genHash (Proxy @c)
 
+-- TODO this
+instance Arbitrary Quantity where
+  -- Can be negative for negative forge
+  arbitrary = Quantity <$> choose (-500, 500)
+
+-- TODO this
+instance Arbitrary Hash.ByteString where
+  arbitrary =
+    oneof
+      [ return $ BS.pack "Ada",
+        return $ BS.pack "DefinitelyAda"
+      ]
+
+-- TODO this
+instance Arbitrary Mock.CompactValue where
+  arbitrary = valueToCompactValue <$> arbitrary
+
 instance HashAlgorithm h => Arbitrary (Mock.Tx h) where
   arbitrary = do
     (_ledgerState, _steps, _txfee, tx, _lv) <- hedgehog (genStateTx (Proxy @h))
@@ -275,6 +294,14 @@ instance Crypto c => Arbitrary (TxIn c) where
       <*> arbitrary
 
 instance HashAlgorithm h => Arbitrary (Mock.TxOut h) where
+  arbitrary = genericArbitraryU
+  shrink = genericShrink
+
+instance Arbitrary Mock.UTxOOut where
+  arbitrary = genericArbitraryU
+  shrink = genericShrink
+
+instance Arbitrary Mock.Value where
   arbitrary = genericArbitraryU
   shrink = genericShrink
 
