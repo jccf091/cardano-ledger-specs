@@ -177,6 +177,11 @@ import Shelley.Spec.Ledger.TxData
     pattern TxIn,
     pattern TxOut,
   )
+import Shelley.Spec.Ledger.Value
+ (
+  coinToValue,
+  zeroV,
+ )
 import Shelley.Spec.Ledger.UTxO (hashTxBody, makeWitnessVKey)
 import Test.Cardano.Crypto.VRF.Fake (WithResult (..))
 import Test.Shelley.Spec.Ledger.ConcreteCryptoTypes
@@ -318,7 +323,7 @@ testVRFKH :: HashAlgorithm h => proxy h -> VRFKeyHash h
 testVRFKH _ = hashKeyVRF $ snd testVRF
 
 testTxb :: HashAlgorithm h => TxBody h
-testTxb = TxBody Set.empty StrictSeq.empty StrictSeq.empty (Wdrl Map.empty) (Coin 0) (SlotNo 0) SNothing SNothing
+testTxb = TxBody Set.empty StrictSeq.empty StrictSeq.empty zeroV (Wdrl Map.empty) (Coin 0) (SlotNo 0) SNothing SNothing
 
 testTxbHash :: HashAlgorithm h => Hash (ConcreteCrypto h) (TxBody h)
 testTxbHash = hashTxBody testTxb
@@ -588,7 +593,7 @@ serializationUnitTests =
       let a = Addr Testnet (testPayCred p) StakeRefNull
        in checkEncodingCBOR
             "txout"
-            (TxOut a (Coin 2))
+            (TxOut a (coinToValue $ Coin 2)) -- TODO Value
             ( T (TkListLen 2)
                 <> S a
                 <> S (Coin 2)
@@ -886,13 +891,14 @@ serializationUnitTests =
             ),
       -- checkEncodingCBOR "minimal_txn_body"
       let tin = TxIn genesisId 1
-          tout = TxOut (testAddrE p) (Coin 2)
+          tout = TxOut (testAddrE p) (coinToValue $ Coin 2) -- TODO value
        in checkEncodingCBORAnnotated
             "txbody"
             ( TxBody -- minimal transaction body
                 (Set.fromList [tin])
                 (StrictSeq.singleton tout)
                 StrictSeq.empty
+                zeroV -- TODO something else
                 (Wdrl Map.empty)
                 (Coin 9)
                 (SlotNo 500)
@@ -905,6 +911,7 @@ serializationUnitTests =
                 <> S tin
                 <> T (TkWord 1) -- Tx Outs
                 <> T (TkListLen 1)
+                <> T (TkListLen 0) -- TODO what is this?
                 <> S tout
                 <> T (TkWord 2) -- Tx Fee
                 <> T (TkWord64 9)
@@ -913,7 +920,7 @@ serializationUnitTests =
             ),
       -- checkEncodingCBOR "transaction_mixed"
       let tin = TxIn genesisId 1
-          tout = TxOut (testAddrE p) (Coin 2)
+          tout = TxOut (testAddrE p) (coinToValue $ Coin 2) -- TODO value
           ra = RewardAcnt Testnet (KeyHashObj (testKeyHash2 p))
           ras = Map.singleton ra (Coin 123)
           up =
@@ -950,6 +957,7 @@ serializationUnitTests =
                 (Set.fromList [tin])
                 (StrictSeq.singleton tout)
                 StrictSeq.Empty
+                zeroV -- TODO something else
                 (Wdrl ras)
                 (Coin 9)
                 (SlotNo 500)
@@ -963,6 +971,9 @@ serializationUnitTests =
                 <> T (TkWord 1) -- Tx Outs
                 <> T (TkListLen 1)
                 <> S tout
+                <> T (TkWord 0) -- TODO ?? forge
+                <> T (TkListLen 1)
+                <> S tout
                 <> T (TkWord 2) -- Tx Fee
                 <> S (Coin 9)
                 <> T (TkWord 3) -- Tx TTL
@@ -974,7 +985,7 @@ serializationUnitTests =
             ),
       -- checkEncodingCBOR "full_txn_body"
       let tin = TxIn genesisId 1
-          tout = TxOut (testAddrE p) (Coin 2)
+          tout = TxOut (testAddrE p) (coinToValue $ Coin 2)
           reg = DCertDeleg (RegKey (testStakeCred p))
           ra = RewardAcnt Testnet (KeyHashObj (testKeyHash2 p))
           ras = Map.singleton ra (Coin 123)
@@ -1013,6 +1024,7 @@ serializationUnitTests =
                 (Set.fromList [tin])
                 (StrictSeq.singleton tout)
                 (StrictSeq.fromList [reg])
+                zeroV -- TODO ??
                 (Wdrl ras)
                 (Coin 9)
                 (SlotNo 500)
@@ -1024,8 +1036,9 @@ serializationUnitTests =
                 <> T (TkListLen 1)
                 <> S tin
                 <> T (TkWord 1) -- Tx Outs
-                <> T (TkListLen 1)
+                <> T (TkListLen 1) -- TODO ???
                 <> S tout
+                <> T (TkListLen 1)
                 <> T (TkWord 2) -- Tx Fee
                 <> S (Coin 9)
                 <> T (TkWord 3) -- Tx TTL
@@ -1044,8 +1057,9 @@ serializationUnitTests =
       let txb =
             TxBody
               (Set.fromList [TxIn genesisId 1])
-              (StrictSeq.singleton $ TxOut (testAddrE p) (Coin 2))
+              (StrictSeq.singleton $ TxOut (testAddrE p) (coinToValue $ Coin 2))
               StrictSeq.empty
+              zeroV -- TODO else
               (Wdrl Map.empty)
               (Coin 9)
               (SlotNo 500)
@@ -1068,8 +1082,9 @@ serializationUnitTests =
       let txb =
             TxBody
               (Set.fromList [TxIn genesisId 1])
-              (StrictSeq.singleton $ TxOut (testAddrE p) (Coin 2))
+              (StrictSeq.singleton $ TxOut (testAddrE p) (coinToValue $ Coin 2))
               StrictSeq.empty
+              zeroV --TODO change this
               (Wdrl Map.empty)
               (Coin 9)
               (SlotNo 500)
@@ -1178,8 +1193,8 @@ serializationUnitTests =
       let sig = signedKES () 0 (testBHB p) (fst testKESKeys)
           bh = BHeader (testBHB p) sig
           tin = Set.fromList [TxIn genesisId 1]
-          tout = StrictSeq.singleton $ TxOut (testAddrE p) (Coin 2)
-          txb s = TxBody tin tout StrictSeq.empty (Wdrl Map.empty) (Coin 9) (SlotNo s) SNothing SNothing
+          tout = StrictSeq.singleton $ TxOut (testAddrE p) (coinToValue $ Coin 2)
+          txb s = TxBody tin tout StrictSeq.empty zeroV (Wdrl Map.empty) (Coin 9) (SlotNo s) SNothing SNothing -- TODO zeroV change
           txb1 = txb 500
           txb2 = txb 501
           txb3 = txb 502
