@@ -12,6 +12,7 @@ module Test.Shelley.Spec.Ledger.Utils
     evolveKESUntil,
     slotFromEpoch,
     mkKeyPair,
+    mkKeyPair',
     mkGenKey,
     mkKESKeyPair,
     mkVRFKeyPair,
@@ -67,6 +68,7 @@ import Test.Shelley.Spec.Ledger.ConcreteCryptoTypes
     VKeyGenesis,
     VerKeyKES,
     VerKeyVRF,
+    pattern KeyPair,
     pattern VKey,
   )
 
@@ -94,6 +96,12 @@ mkKeyPair :: (Word64, Word64, Word64, Word64, Word64) -> (SignKeyDSIGN, VKey kr)
 mkKeyPair seed =
   let sk = genKeyDSIGN $ mkSeedFromWords seed
    in (sk, VKey $ deriveVerKeyDSIGN sk)
+
+-- | For testing purposes, generate a deterministic key pair given a seed.
+mkKeyPair' :: (Word64, Word64, Word64, Word64, Word64) -> KeyPair kr
+mkKeyPair' seed = KeyPair vk sk
+  where
+    (sk, vk) = mkKeyPair seed
 
 -- | For testing purposes, generate a deterministic VRF key pair given a seed.
 mkVRFKeyPair :: (Word64, Word64, Word64, Word64, Word64) -> (SignKeyVRF, VerKeyVRF)
