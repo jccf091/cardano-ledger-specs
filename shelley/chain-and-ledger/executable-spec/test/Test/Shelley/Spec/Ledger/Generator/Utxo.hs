@@ -107,7 +107,7 @@ import Test.Shelley.Spec.Ledger.Generator.Update (genUpdate)
 
 -- TODO make witnesses for forges
 -- generate value properly
-genValue :: Integer -> Integer -> Gen Value
+genValue :: Integer -> Integer -> Gen (Value h)
 genValue _ _ = do
   pure zeroV
 
