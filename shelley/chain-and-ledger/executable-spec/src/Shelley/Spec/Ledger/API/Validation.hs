@@ -16,12 +16,11 @@ module Shelley.Spec.Ledger.API.Validation
   )
 where
 
-import Cardano.Prelude (NoUnexpectedThunks (..))
+import Cardano.Prelude (NoUnexpectedThunks (..), identity)
 import Control.Arrow (left, right)
 import Control.Monad.Except
 import Control.Monad.Trans.Reader (runReader)
 import Control.State.Transition.Extended (TRC (..), applySTS)
-import Data.Either (fromRight)
 import GHC.Generics (Generic)
 import Shelley.Spec.Ledger.BaseTypes (Globals (..))
 import Shelley.Spec.Ledger.BlockChain
@@ -92,11 +91,12 @@ applyTickTransition ::
   SlotNo ->
   ShelleyState crypto
 applyTickTransition globals state hdr =
-  fromRight err . flip runReader globals
+  (either err identity) . flip runReader globals
     . applySTS @(STS.TICK crypto)
     $ TRC (mkTickEnv state, state, hdr)
   where
-    err = error "Panic! applyHeaderTransition failed."
+    err :: Show a => a -> LedgerState.NewEpochState crypto
+    err msg = error $ "Panic! applyHeaderTransition failed: " <> (show msg)
 
 newtype BlockTransitionError crypto
   = BlockTransitionError [STS.PredicateFailure (STS.BBODY crypto)]
